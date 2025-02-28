@@ -17,17 +17,15 @@ services:
     depends_on:
       - keycloak
 
+
   service1:
-    image: tiangolo/uvicorn-gunicorn-fastapi:python3.10
+    build: ./service1
     volumes:
       - ./service1:/app
-    environment:
-      - MODULE_NAME=main
 
   service2:
-    image: tiangolo/uvicorn-gunicorn-fastapi:python3.10
+    build: ./service2
     volumes:
       - ./service2:/app
-    environment:
-      - MODULE_NAME=main
+
 
