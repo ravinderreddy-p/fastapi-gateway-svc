@@ -4,12 +4,10 @@ from jose import JWTError, jwt, jwk
 from jose.constants import ALGORITHMS
 import httpx
 
-# issuer: http://localhost:8080/realms/fastapi-gateway
-# http://keycloak:8080/realms/fastapi-gateway/.well-known/openid-configuration
 KEYCLOAK_URL = "http://keycloak:8080/realms/fastapi-gateway"
 # KEYCLOAK_URL = "http://localhost:8080/realms/fastapi-gateway"
 
-# http://localhost:8080/realms/fastapi-gateway/protocol/openid-connect/certs
+
 JWKS_URL = f"{KEYCLOAK_URL}/protocol/openid-connect/certs"
 ALGORITHM = ALGORITHMS.RS256
 # CLEINT_ID = "myclient"
