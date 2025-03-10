@@ -4,8 +4,10 @@ from jose import JWTError, jwt, jwk
 from jose.constants import ALGORITHMS
 import httpx
 
-KEYCLOAK_URL = "http://keycloak:8080/realms/fastapi-gateway"
-# KEYCLOAK_URL = "http://localhost:8080/realms/fastapi-gateway"
+import session_manager
+
+# KEYCLOAK_URL = "http://keycloak:8080/realms/fastapi-gateway"
+KEYCLOAK_URL = "http://localhost:8080/realms/fastapi-gateway"
 
 
 JWKS_URL = f"{KEYCLOAK_URL}/protocol/openid-connect/certs"
@@ -19,6 +21,7 @@ oauth2_scheme = OAuth2AuthorizationCodeBearer(
 )
 
 async def get_jwks():
+    # import pdb; pdb.set_trace()
     async with httpx.AsyncClient() as client:
         response = await client.get(JWKS_URL)
         return response.json()
@@ -38,16 +41,18 @@ async def verify_token(token: str = Security(oauth2_scheme)):
     except JWTError as e:
         if "expired" in str(e):
             # Token expired, try refresh
-            return await refresh_token(token)
+            session_data = session_manager.get_session_data(token)
+            if session_data:
+                return await refresh_token(session_data["refresh_token"])
+            else:
+                raise HTTPException(status_code=403, detail="Invalid token")
         else:
-            # redirect response with URI
-            # Create one more end point - fetch-keycloak-token
             raise HTTPException(status_code=403, detail="Invalid token")
     except Exception as ex:
         raise HTTPException(status_code=403, detail="Could not validate credentials")
 
 
-async def refresh_token(token: str):
+async def refresh_token(refresh_token: str):
     try:
         token_url = "http://localhost:8080/realms/fastapi-gateway/protocol/openid-connect/token"
         async with httpx.AsyncClient() as client:
@@ -55,9 +60,9 @@ async def refresh_token(token: str):
                 token_url,
                 data={
                     "grant_type": "refresh_token",
-                    "client_id": CLIENT_ID,
-                    "refresh_token": extract_refresh_token(token), # You need to implement this function
-                    "client_secret": CLIENT_SECRET
+                    "client_id": "fastapi-client",
+                    "refresh_token": refresh_token, # You need to implement this function
+                    "client_secret": "4lZKd0X28IAjV9MYeejgrFDtjfO4cndT"
                 },
                 headers={'Content-Type': 'application/x-www-form-urlencoded'}
             )
