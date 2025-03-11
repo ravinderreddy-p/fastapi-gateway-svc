@@ -4,3 +4,5 @@ httpx
 authlib 
 python-jose
 python-multipart
+itsdangerous
+pydantic-settings

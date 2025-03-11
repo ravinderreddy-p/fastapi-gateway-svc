@@ -5,9 +5,11 @@ from jose.constants import ALGORITHMS
 import httpx
 
 import session_manager
+from config import settings
 
 # KEYCLOAK_URL = "http://keycloak:8080/realms/fastapi-gateway"
-KEYCLOAK_URL = "http://localhost:8080/realms/fastapi-gateway"
+KEYCLOAK_URL = settings.keycloak_url
+
 
 
 JWKS_URL = f"{KEYCLOAK_URL}/protocol/openid-connect/certs"
@@ -54,15 +56,15 @@ async def verify_token(token: str = Security(oauth2_scheme)):
 
 async def refresh_token(refresh_token: str):
     try:
-        token_url = "http://localhost:8080/realms/fastapi-gateway/protocol/openid-connect/token"
+        token_url = settings.keycloak_token_url
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 token_url,
                 data={
                     "grant_type": "refresh_token",
-                    "client_id": "fastapi-client",
+                    "client_id": settings.client_id,
                     "refresh_token": refresh_token, # You need to implement this function
-                    "client_secret": "4lZKd0X28IAjV9MYeejgrFDtjfO4cndT"
+                    "client_secret": settings.client_secret,
                 },
                 headers={'Content-Type': 'application/x-www-form-urlencoded'}
             )

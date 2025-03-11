@@ -11,6 +11,7 @@ from keycloak_middleware import KeycloakRedirectMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 
 from session_manager import session_manager
+from config import settings
 
 app = FastAPI(
     title="FastAPI API Gateway with Keycloak",
@@ -25,29 +26,18 @@ app = FastAPI(
     ],
 )
 
-sessions = {}
-
-# Configuration (Move this to a config file later if you want)
-KEYCLOAK_AUTH_URL = "http://localhost:8080/realms/fastapi-gateway/protocol/openid-connect/auth"
-CLIENT_ID = "fastapi-client"
-REDIRECT_URI = "http://localhost:8000/login"
-SCOPE = "openid"
-
 # Add the middleware to your app
 app.add_middleware(
     KeycloakRedirectMiddleware,
-    keycloak_auth_url=KEYCLOAK_AUTH_URL,
-    client_id=CLIENT_ID,
-    redirect_uri=REDIRECT_URI,
-    scope=SCOPE
+    keycloak_auth_url=settings.keycloak_auth_url,
+    client_id=settings.client_id,
+    redirect_uri=settings.redirect_uri,
+    scope=settings.scope,
 )
 
 app.add_middleware(SessionMiddleware, secret_key="some-random-string", same_site="lax")
 
-BACKEND_SERVICE_URLS = {
-    "service1": "http://localhost:8001",
-    "service2": "http://service2:8002",
-}
+BACKEND_SERVICE_URLS = settings.backend_service_urls
 
 # FRONTEND_SERVICE_URLS = {
 #     "fe_service1": "http://localhost:4200",
@@ -76,16 +66,16 @@ async def gateway(service: str, path: str, request: Request):
 async def login(request: Request, response: Response, code: str = Query(...)):
     try:
         # token_url = "http://keycloak:8080/realms/fastapi-gateway/protocol/openid-connect/token"
-        token_url = "http://localhost:8080/realms/fastapi-gateway/protocol/openid-connect/token"
+        token_url = settings.keycloak_token_url
         async with httpx.AsyncClient() as client:
             token_response = await client.post(
                 token_url,
                 data={
                     "grant_type": "authorization_code",
-                    "client_id": "fastapi-client",
+                    "client_id": settings.client_id,
                     "code": code,
-                    "redirect_uri":"http://localhost:8000/login", # should be same as keycloak client valid redirect url
-                   "client_secret": "4lZKd0X28IAjV9MYeejgrFDtjfO4cndT" #Replace with your client secret if required by Keycloak configuration
+                    "redirect_uri": settings.redirect_uri, # should be same as keycloak client valid redirect url
+                   "client_secret": settings.client_secret #Replace with your client secret if required by Keycloak configuration
                 },
                 headers={'Content-Type': 'application/x-www-form-urlencoded'}
             )
@@ -100,7 +90,7 @@ async def login(request: Request, response: Response, code: str = Query(...)):
             request.session['session_id'] = session_id
 
             # response.set_cookie('session_id', session_id, httponly=True, domain="http://localhost:4200", path="/restaurants")
-            return RedirectResponse(url="http://localhost:4200/restaurants")
+            return RedirectResponse(url=settings.ui_home_url)
 
     except httpx.HTTPError as e:
         print(f"Keycloak Authentication failed: {e}")
