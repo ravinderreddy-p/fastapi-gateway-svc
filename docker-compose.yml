@@ -1,5 +1,8 @@
 version: '3.8'
 
+networks:
+  my-app-network:
+
 services:
   keycloak:
     image: quay.io/keycloak/keycloak:latest
@@ -9,6 +12,8 @@ services:
       - KEYCLOAK_ADMIN=admin
       - KEYCLOAK_ADMIN_PASSWORD=admin
     command: start-dev
+    networks:
+      - my-app-network
 
   gateway:
     build: .
@@ -16,16 +21,31 @@ services:
       - "8000:8000"
     depends_on:
       - keycloak
+    networks:
+      - my-app-network
 
 
   service1:
     build: ./service1
     volumes:
       - ./service1:/app
+    networks:
+      - my-app-network
 
   service2:
     build: ./service2
     volumes:
       - ./service2:/app
-
-
+    networks:
+      - my-app-network
+  
+  ui:
+    build:
+      context: /Users/ravi/pocs/Auth_POC/uii # Path to the UI service's directory
+      dockerfile: Dockerfile # Name of the Dockerfile in the UI directory
+    ports:
+      - "80:80"  # Map the UI's port (4200) to the host
+    depends_on:
+      - gateway
+    networks:
+      - my-app-network

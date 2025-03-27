@@ -4,7 +4,9 @@ from jose import JWTError, jwt, jwk
 from jose.constants import ALGORITHMS
 import httpx
 
-import session_manager
+from logger import logger
+
+from session_manager import session_manager
 from config import settings
 
 # KEYCLOAK_URL = "http://keycloak:8080/realms/fastapi-gateway"
@@ -29,33 +31,41 @@ async def get_jwks():
         return response.json()
 
 async def verify_token(token: str = Security(oauth2_scheme)):
+    logger.info(f"Verifying the token with Keycloak service: {token}")
     try:
         header = jwt.get_unverified_header(token)
+        logger.info(f"header is: {header}")
         jwks = await get_jwks()
         key = next(
             (key for key in jwks["keys"] if key["kid"] == header["kid"]), None
         )
         if not key:
+            logger.info("Key not found, Invalid token")
             raise HTTPException(status_code=403, detail="Invalid token")
         public_key = jwk.construct(key, ALGORITHM)
         payload = jwt.decode(token, public_key, algorithms=[ALGORITHM], audience="account")
+        logger.info("Token Verified successfully, forwarding the request")
         return payload
     except JWTError as e:
+        logger.error(f"JWT Error: {e}")
         if "expired" in str(e):
             # Token expired, try refresh
-            session_data = session_manager.get_session_data(token)
+            session_data = session_manager.get_session(token)
             if session_data:
+                logger.info("Token expired, trying to refresh")
                 return await refresh_token(session_data["refresh_token"])
             else:
                 raise HTTPException(status_code=403, detail="Invalid token")
         else:
             raise HTTPException(status_code=403, detail="Invalid token")
     except Exception as ex:
+        logger.error(f"Error verifying token: {ex}")
         raise HTTPException(status_code=403, detail="Could not validate credentials")
 
 
 async def refresh_token(refresh_token: str):
     try:
+        logger.info("Trying to refresh the token")
         token_url = settings.keycloak_token_url
         async with httpx.AsyncClient() as client:
             response = await client.post(

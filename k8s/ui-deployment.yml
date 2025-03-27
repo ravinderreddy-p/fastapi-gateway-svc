@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ui
+  namespace: my-app-namespace
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ui
+  template:
+    metadata:
+      labels:
+        app: ui
+    spec:
+      containers:
+        - name: ui
+          image: fastapi-gateway-svc-ui:latest # Replace with your UI image
+          ports:
+            - containerPort: 80
+          imagePullPolicy: IfNotPresent # Added image pull policy
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ui
+  namespace: my-app-namespace
+spec:
+  selector:
+    app: ui
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP

@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service2-deployment
+  namespace: my-app-namespace
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: service2
+  template:
+    metadata:
+      labels:
+        app: service2
+    spec:
+      containers:
+        - name: service2
+          image: fastapi-gateway-svc-service2:latest
+          imagePullPolicy: IfNotPresent # Added image pull policy
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service2-service
+  namespace: my-app-namespace
+spec:
+  selector:
+    app: service2
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
