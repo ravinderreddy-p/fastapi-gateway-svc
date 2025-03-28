@@ -1,10 +1,8 @@
 from logger import logger
-import uuid
-from fastapi import FastAPI, Form, Query, Request, Depends, HTTPException, Response
+from fastapi import FastAPI, Query, Request, HTTPException, Response
 from fastapi.middleware import Middleware
-from fastapi.responses import RedirectResponse, StreamingResponse
+from fastapi.responses import RedirectResponse
 import httpx
-from auth import verify_token
 
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -44,16 +42,11 @@ BACKEND_SERVICE_URLS = settings.backend_service_urls
 logger.info(f"Backend Service URLs: {BACKEND_SERVICE_URLS}")
 
 FRONTEND_SERVICE_URLS = settings.front_service_urls
-# {
-#     # "ui": "http://localhost:8081",
-#     "ui": "http://ui:80",
-# }
 
 logger.info(f"Frontend Service URLs: {FRONTEND_SERVICE_URLS}")
 
 @app.api_route("/{service}/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def gateway(service: str, path: str, request: Request):
-    # import pdb; pdb.set_trace()
     if service in FRONTEND_SERVICE_URLS:
         ui_url = f"{FRONTEND_SERVICE_URLS[service]}/ui/{path}"
         logger.info(f"Forwarding UI request to: {ui_url}")
@@ -67,7 +60,6 @@ async def gateway(service: str, path: str, request: Request):
                     timeout=30 # Added timeout
                 )
                 response.raise_for_status()  # Raise an exception for bad status codes
-                # return StreamingResponse(response.aiter_raw(), status_code=response.status_code, headers=dict(response.headers))
                 return Response(content=response.content, status_code=response.status_code, headers=response.headers)
             except httpx.HTTPError as e:
                 logger.error(f"Error forwarding UI request: {e}")
@@ -78,9 +70,7 @@ async def gateway(service: str, path: str, request: Request):
             except Exception as e:
                 logger.error(f"Unexpected error forwarding UI request: {e}")
                 return Response(content=b"Internal Server Error", status_code=500)
-                
-    # if service in FRONTEND_SERVICE_URLS:
-    #     return RedirectResponse(url=f"{FRONTEND_SERVICE_URLS[service]}/{path}")
+
     
     if service not in BACKEND_SERVICE_URLS:
         raise HTTPException(status_code=404, detail="Service not found")
