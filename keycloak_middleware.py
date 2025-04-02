@@ -6,6 +6,7 @@ from auth import verify_token
 from session_manager import session_manager
 
 from logger import logger
+from config import settings
 
 request_path = {}
 
@@ -22,8 +23,13 @@ class KeycloakRedirectMiddleware(BaseHTTPMiddleware):
         #Check if the url is login or login-token, to prevent infinite loop
         if request.url.path in ["/login"]:
             return await call_next(request)
+        import pdb; pdb.set_trace()
+        host = request.headers.get("host")
+        tenant_name = host.split(".")[0]
+        logger.info(f"Tenant name is: {tenant_name}")
+        if tenant_name:
+            settings.load_tenant_config(tenant_name)
             
-
         # Check if an access token is present
         try:
             # import pdb; pdb.set_trace()

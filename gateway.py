@@ -26,14 +26,35 @@ app = FastAPI(
     ],
 )
 
-# Add the middleware to your app
-app.add_middleware(
-    KeycloakRedirectMiddleware,
-    keycloak_auth_url=settings.keycloak_auth_url,
-    client_id=settings.client_id,
-    redirect_uri=settings.redirect_uri,
-    scope=settings.scope,
-)
+def get_tenant_from_host(host: str) -> str | None:
+    parts = host.split(".")
+    if len(parts) >= 2:
+        tenant_name = parts[0]
+        if tenant_name in settings.tenant_config:
+            return tenant_name
+    return None
+
+
+# --- Middleware ---
+@app.middleware("http")
+async def tenant_middleware(request: Request, call_next):
+    """Middleware to determine the tenant and set the appropriate settings"""
+    import pdb; pdb.set_trace()
+    host = request.headers.get("host")
+    tenant = get_tenant_from_host(host)
+    if tenant:
+        settings.load_tenant_config(tenant)
+    request.state.settings = settings
+    request.state.tenant = tenant
+    response = await call_next(request)
+    return response
+
+app.add_middleware(KeycloakRedirectMiddleware,
+                    keycloak_auth_url=settings.keycloak_auth_url,
+                    client_id=settings.client_id,
+                    redirect_uri=settings.redirect_uri,
+                    scope=settings.scope,
+                   )
 
 app.add_middleware(SessionMiddleware, secret_key="some-random-string", same_site="lax")
 
