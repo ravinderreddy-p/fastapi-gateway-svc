@@ -7,35 +7,35 @@ import httpx
 from logger import logger
 
 from session_manager import session_manager
-from config import settings
+from config import settings, Settings # Import Settings class
 
 # KEYCLOAK_URL = "http://keycloak:8080/realms/fastapi-gateway"
-KEYCLOAK_URL = settings.keycloak_url
+# KEYCLOAK_URL = settings.keycloak_url # Remove this line
 
 
 
-JWKS_URL = f"{KEYCLOAK_URL}/protocol/openid-connect/certs"
+JWKS_URL = "" # Remove this line
 ALGORITHM = ALGORITHMS.RS256
 # CLEINT_ID = "myclient"
 
 
 oauth2_scheme = OAuth2AuthorizationCodeBearer(
-    authorizationUrl=f"{KEYCLOAK_URL}/protocol/openid-connect/auth",
-    tokenUrl=f"{KEYCLOAK_URL}/protocol/openid-connect/token"
+    authorizationUrl="", # Remove this line
+    tokenUrl="" # Remove this line
 )
 
-async def get_jwks():
+async def get_jwks(settings: Settings): # Add settings parameter
     # import pdb; pdb.set_trace()
     async with httpx.AsyncClient() as client:
-        response = await client.get(JWKS_URL)
+        response = await client.get(f"{settings.keycloak_url}/protocol/openid-connect/certs") # Use settings here
         return response.json()
 
-async def verify_token(token: str = Security(oauth2_scheme)):
+async def verify_token(token: str, settings: Settings): # Add settings parameter
     logger.info(f"Verifying the token with Keycloak service: {token}")
     try:
         header = jwt.get_unverified_header(token)
         logger.info(f"header is: {header}")
-        jwks = await get_jwks()
+        jwks = await get_jwks(settings) # Pass settings here
         key = next(
             (key for key in jwks["keys"] if key["kid"] == header["kid"]), None
         )
@@ -53,7 +53,7 @@ async def verify_token(token: str = Security(oauth2_scheme)):
             session_data = session_manager.get_session(token)
             if session_data:
                 logger.info("Token expired, trying to refresh")
-                return await refresh_token(session_data["refresh_token"])
+                return await refresh_token(session_data["refresh_token"], settings) # Pass settings here
             else:
                 raise HTTPException(status_code=403, detail="Invalid token")
         else:
@@ -63,7 +63,7 @@ async def verify_token(token: str = Security(oauth2_scheme)):
         raise HTTPException(status_code=403, detail="Could not validate credentials")
 
 
-async def refresh_token(refresh_token: str):
+async def refresh_token(refresh_token: str, settings: Settings): # Add settings parameter
     try:
         logger.info("Trying to refresh the token")
         token_url = settings.keycloak_token_url
@@ -81,7 +81,7 @@ async def refresh_token(refresh_token: str):
             response.raise_for_status()
             token_data = response.json()
             access_token = token_data["access_token"]
-            return verify_token(access_token) #Verify the new token
+            return verify_token(access_token, settings) #Verify the new token, pass settings
     except httpx.HTTPError as e:
         raise HTTPException(status_code=401, detail=f"Token refresh failed: {e}")
     except KeyError as e:

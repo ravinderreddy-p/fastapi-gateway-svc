@@ -18,7 +18,10 @@ spec:
           image: fastapi-gateway-svc-gateway:latest
           ports:
             - containerPort: 8000
-          imagePullPolicy: IfNotPresent # Added image pull policy
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: gateway-env
 ---
 apiVersion: v1
 kind: Service

@@ -10,7 +10,7 @@ from keycloak_middleware import KeycloakRedirectMiddleware, request_path
 from fastapi.middleware.cors import CORSMiddleware
 
 from session_manager import session_manager
-from config import settings
+from config import settings, Settings # Import Settings class
 
 
 app = FastAPI(
@@ -22,11 +22,15 @@ app = FastAPI(
             allow_credentials=True,  # Important for cookies and authorization
             allow_methods=["*"],  # Allow all HTTP methods (GET, POST, etc.)
             allow_headers=["*"],  # Allow all headers
-        )
+        ),
+        Middleware(SessionMiddleware, secret_key="some-random-string", same_site="lax"),
+        Middleware(KeycloakRedirectMiddleware), # Remove the parameters here
     ],
 )
 
 def get_tenant_from_host(host: str) -> str | None:
+    if not host:
+        return None
     parts = host.split(".")
     if len(parts) >= 2:
         tenant_name = parts[0]
@@ -39,24 +43,20 @@ def get_tenant_from_host(host: str) -> str | None:
 @app.middleware("http")
 async def tenant_middleware(request: Request, call_next):
     """Middleware to determine the tenant and set the appropriate settings"""
-    import pdb; pdb.set_trace()
     host = request.headers.get("host")
     tenant = get_tenant_from_host(host)
+    
+    # Load tenant settings
+    settings = Settings()
     if tenant:
         settings.load_tenant_config(tenant)
+    else:
+        logger.warning("No tenant found in host, using default settings")
     request.state.settings = settings
     request.state.tenant = tenant
     response = await call_next(request)
     return response
 
-app.add_middleware(KeycloakRedirectMiddleware,
-                    keycloak_auth_url=settings.keycloak_auth_url,
-                    client_id=settings.client_id,
-                    redirect_uri=settings.redirect_uri,
-                    scope=settings.scope,
-                   )
-
-app.add_middleware(SessionMiddleware, secret_key="some-random-string", same_site="lax")
 
 BACKEND_SERVICE_URLS = settings.backend_service_urls
 
@@ -113,6 +113,16 @@ async def gateway(service: str, path: str, request: Request):
 
 @app.get("/login")
 async def login(request: Request, response: Response, code: str = Query(...)):
+    # Get tenant from host
+    host = request.headers.get("host")
+    tenant = get_tenant_from_host(host)
+    
+    # Load tenant settings
+    settings = Settings()
+    if tenant:
+        settings.load_tenant_config(tenant)
+    else:
+        logger.warning("No tenant found in host, using default settings")
     try:
         # token_url = "http://keycloak:8080/realms/fastapi-gateway/protocol/openid-connect/token"
         token_url = settings.keycloak_token_url
@@ -171,4 +181,3 @@ async def login(request: Request, response: Response, code: str = Query(...)):
     except Exception as e:
         print(f"Unexpected error during login: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
-    
